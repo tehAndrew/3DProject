@@ -60,20 +60,34 @@ Rasterizer::~Rasterizer() {
 	instantiated = false;
 }
 
-HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight) {
+HRESULT Rasterizer::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	HRESULT hr;
 
+	// Set window handle
+	hostWndHandle = hWnd;
+
 	// Create matrices.
+	// Initialize constant buffer data
 	m.worldMatrix = XMMatrixIdentity();
-	m.viewMatrix  = XMMatrixLookAtLH(XMVectorSet(0.0f, 0.0f, -2.0f, 1.0f),
-		                           XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f),
-		                           XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f));
-	m.projMatrix  = XMMatrixPerspectiveFovLH(XM_PI * 0.45f, 0.1f, 20.0f, (float) clientWidth / (float) clientHeight);
-	
-	// Transpose matrices to match the matrix system in the shaders.
+
+	// Set the view matrix
+	XMVECTOR pos = XMVectorSet(0.0f, 0.0f, -2.0f, 1.0f);
+	XMVECTOR target = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
+
+	m.viewMatrix = XMMatrixLookAtLH(pos, target, up);
+
+	// Set the projection matrix
+	float fov = XM_PI * 0.45f;
+	float nearPlane = 0.1f;
+	float farPlane = 20.0f;
+	float aspectRatio = (float) clientWidth / (float) clientHeight;
+
+	m.projMatrix = XMMatrixPerspectiveFovLH(fov, aspectRatio, nearPlane, farPlane);
+
 	m.worldMatrix = XMMatrixTranspose(m.worldMatrix);
-	m.viewMatrix  = XMMatrixTranspose(m.viewMatrix);
-	m.projMatrix  = XMMatrixTranspose(m.projMatrix);
+	m.viewMatrix = XMMatrixTranspose(m.viewMatrix);
+	m.projMatrix = XMMatrixTranspose(m.projMatrix);
 
 	// Describe the swapchain.
 	DXGI_SWAP_CHAIN_DESC scDesc;
@@ -82,7 +96,7 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 	scDesc.BufferCount = 1;                                    // one back buffer
 	scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;     // use 32-bit color
 	scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;      // how swap chain is to be used
-	scDesc.OutputWindow = hAppWnd;                             // the window to be used
+	scDesc.OutputWindow = hostWndHandle;                             // the window to be used
 	scDesc.SampleDesc.Count = 4;                               // how many multisamples
 	scDesc.Windowed = true;
 
@@ -103,7 +117,7 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hAppWnd, L"Device context and swap chain could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Device context and swap chain could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -122,26 +136,26 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 
 	// Create the depth/stencil buffer.
 	if (FAILED(hr = gDevice->CreateTexture2D(&tDesc, 0, &gDepthStencilBuffer))) {
-		MessageBox(hAppWnd, L"Depth/stencil buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Depth/stencil buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Create the depth/stencil view.
 	if (FAILED(hr = gDevice->CreateDepthStencilView(gDepthStencilBuffer, 0, &gDepthStencilView))) {
-		MessageBox(hAppWnd, L"Depth/stencil view could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Depth/stencil view could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Get the address of the back buffer.
 	ID3D11Texture2D* backBuffer = nullptr;
 	if (FAILED(hr = gSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBuffer))) {
-		MessageBox(hAppWnd, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 	
 	// Create the render target view.
 	if (FAILED(hr = gDevice->CreateRenderTargetView(backBuffer, NULL, &gRenderTargetView))) {
-		MessageBox(hAppWnd, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 	// We don't need the texture for the backbuffer anymore.
@@ -157,6 +171,7 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 	viewPort.MinDepth = 0.0f;
 	viewPort.MaxDepth = 1.0f;
 	viewPort.TopLeftX = 0;
+	viewPort.TopLeftY = 0;
 
 	// Set view port.
 	gDeviceContext->RSSetViewports(1, &viewPort);
@@ -176,7 +191,7 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hAppWnd, L"Vertex shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Vertex shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -195,7 +210,7 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hAppWnd, L"Geometry shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Geometry shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -214,34 +229,34 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hAppWnd, L"Pixel shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Pixel shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Create vertex-, geometry- and pixel shaders.
 	if (FAILED(hr = gDevice->CreateVertexShader(vS->GetBufferPointer(), vS->GetBufferSize(), nullptr, &gVertexShader))) {
-		MessageBox(hAppWnd, L"Vertex shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Vertex shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	if (FAILED(hr = gDevice->CreateGeometryShader(gS->GetBufferPointer(), gS->GetBufferSize(), nullptr, &gGeometryShader))) {
-		MessageBox(hAppWnd, L"Geometry shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Geometry shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	if (FAILED(hr = gDevice->CreatePixelShader(pS->GetBufferPointer(), pS->GetBufferSize(), nullptr, &gPixelShader))) {
-		MessageBox(hAppWnd, L"Pixel shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Pixel shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Create input layout.
 	D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12 , D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 
 	if (FAILED(hr = gDevice->CreateInputLayout(inputDesc, ARRAYSIZE(inputDesc), vS->GetBufferPointer(), vS->GetBufferSize(), &gVertexLayout))) {
-		MessageBox(hAppWnd, L"Input layout could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Input layout could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -261,7 +276,7 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 
 	// Create constant buffer
 	if (FAILED(hr = gDevice->CreateBuffer(&cbDesc, nullptr, &gConstBuffer))) {
-		MessageBox(hAppWnd, L"Constant buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Constant buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -295,14 +310,16 @@ HRESULT Rasterizer::initDirect3D(HWND hAppWnd, int clientWidth, int clientHeight
 
 	// Create the vertex buffer.
 	if(FAILED(hr = gDevice->CreateBuffer(&bDesc, &data, &gVertexBuffer))) {
-		MessageBox(hAppWnd, L"Vertex buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(hostWndHandle, L"Vertex buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	return hr;
 }
 
-void Rasterizer::render() {
+HRESULT Rasterizer::render() {
+	HRESULT hr;
+
 	// Clear the buffers.
 	float clearColor[] = { 0, 0, 0, 1 };
 	gDeviceContext->ClearRenderTargetView(gRenderTargetView, clearColor);
@@ -317,7 +334,10 @@ void Rasterizer::render() {
 	
 	// Map constant buffer.
 	D3D11_MAPPED_SUBRESOURCE data;
-	gDeviceContext->Map(gConstBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &data);
+	if (FAILED(hr = gDeviceContext->Map(gConstBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &data))) {
+		MessageBox(hostWndHandle, L"Constant buffer could not be mapped.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		return hr;
+	}
 
 	// Write to the constant buffer.
 	memcpy(data.pData, &m, sizeof(Matrices));
@@ -338,5 +358,10 @@ void Rasterizer::render() {
 
 	gDeviceContext->Draw(4, 0);
 
-	gSwapChain->Present(0, 0);
+	if (FAILED(hr = gSwapChain->Present(0, 0))) {
+		MessageBox(hostWndHandle, L"Swap chain failed to switch buffers.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	return hr;
 }

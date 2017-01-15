@@ -24,11 +24,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 			}
 			else {
 				// Game Loop
-				rasterizer.render();
+				if(FAILED(rasterizer.render()))
+					return -1;
 			}
 		}
 	}
 
+	DestroyWindow(appWnd);
 	return (int) msg.wParam;
 }
 

@@ -30,6 +30,8 @@ class Rasterizer {
 
 		static bool instantiated;
 
+		HWND hostWndHandle;
+
 		// COM Objects
 		ID3D11Device*           gDevice;
 		ID3D11DeviceContext*    gDeviceContext;
@@ -57,8 +59,8 @@ class Rasterizer {
 		Rasterizer();
 		virtual ~Rasterizer();
 
-		HRESULT initDirect3D(HWND appWnd, int clientWidth, int clientHeight);
+		HRESULT initDirect3D(HWND hWnd, int clientWidth, int clientHeight);
 
-		void render();
+		HRESULT render();
 };
 #endif
