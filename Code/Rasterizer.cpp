@@ -68,26 +68,8 @@ HRESULT Rasterizer::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 
 	// Create matrices.
 	// Initialize constant buffer data
-	m.worldMatrix = XMMatrixIdentity();
-
-	// Set the view matrix
-	XMVECTOR pos = XMVectorSet(0.0f, 0.0f, -2.0f, 1.0f);
-	XMVECTOR target = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f);
-
-	m.viewMatrix = XMMatrixLookAtLH(pos, target, up);
-
-	// Set the projection matrix
-	float fov = XM_PI * 0.45f;
-	float nearPlane = 0.1f;
-	float farPlane = 20.0f;
-	float aspectRatio = (float) clientWidth / (float) clientHeight;
-
-	m.projMatrix = XMMatrixPerspectiveFovLH(fov, aspectRatio, nearPlane, farPlane);
-
-	m.worldMatrix = XMMatrixTranspose(m.worldMatrix);
-	m.viewMatrix = XMMatrixTranspose(m.viewMatrix);
-	m.projMatrix = XMMatrixTranspose(m.projMatrix);
+	matrices.worldMatrix = XMMatrixIdentity();
+	matrices.worldMatrix = XMMatrixTranspose(matrices.worldMatrix);
 
 	// Describe the swapchain.
 	DXGI_SWAP_CHAIN_DESC scDesc;
@@ -283,17 +265,17 @@ HRESULT Rasterizer::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	// Create temp geometry.
 	Vertex triangleVertices[4] =
 	{
-		{ -0.5f, -0.5f, 0.0f,
-		0.0f, 1.0f, 0.5f },
+		{ -100.f, -3.f, -100.f,
+		1.f, 0.f, 0.f },
 
-		{ -0.5f, 0.5f, 0.0f,
-		0.0f, 0.0f, 0.5f },
+		{ -100.f, -3.f, 100.f,
+		1.f, 0.f, 1.f },
 
-		{ 0.5f, -0.5f, 0.0f,
-		1.0f, 1.0f, 0.5f },
+		{100.f, -3.f, -100.f,
+		0.f, 1.f, 1.f },
 
-		{ 0.5f, 0.5f, 0.0f,
-		1.0f, 0.0f, 0.5f }
+		{ 100.f, -3.f, 100.f,
+		1.f, 1.f, 1.f }
 	};
 
 	// Describe vertex buffer
@@ -315,6 +297,12 @@ HRESULT Rasterizer::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	}
 
 	return hr;
+}
+
+void Rasterizer::setMatrices(FXMMATRIX worldMatrix, FXMMATRIX viewMatrix, FXMMATRIX projMatrix) {
+	matrices.worldMatrix = worldMatrix;
+	matrices.viewMatrix  = viewMatrix;
+	matrices.projMatrix  = projMatrix;
 }
 
 HRESULT Rasterizer::render() {
@@ -340,7 +328,7 @@ HRESULT Rasterizer::render() {
 	}
 
 	// Write to the constant buffer.
-	memcpy(data.pData, &m, sizeof(Matrices));
+	memcpy(data.pData, &matrices, sizeof(Matrices));
 
 	// Unmap the constant buffer.
 	gDeviceContext->Unmap(gConstBuffer, 0);

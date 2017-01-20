@@ -52,14 +52,15 @@ class Rasterizer {
 			XMMATRIX viewMatrix;
 			XMMATRIX projMatrix;
 		};
-
-		Matrices m;
+		Matrices matrices;
 
 	public:
 		Rasterizer();
 		virtual ~Rasterizer();
 
 		HRESULT initDirect3D(HWND hWnd, int clientWidth, int clientHeight);
+
+		void setMatrices(FXMMATRIX worldMatrix, FXMMATRIX viewMatrix, FXMMATRIX projMatrix);
 
 		HRESULT render();
 };
