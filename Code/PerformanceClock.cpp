@@ -1,3 +1,5 @@
+/* Code by Frank D Luna*/
+
 #include "PerformanceClock.h"
 
 PerformanceClock::PerformanceClock() {

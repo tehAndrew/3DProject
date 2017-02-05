@@ -5,8 +5,9 @@
 
 class Input {
 	public:
+		// UNKNOWN_KEY is any key thats not predefined.
 		enum Keys {
-			W_KEY, A_KEY, S_KEY, D_KEY, UNKNOWN_KEY
+			Q_KEY, W_KEY, E_KEY, A_KEY, S_KEY, D_KEY, UNKNOWN_KEY
 		};
 
 		enum KeyState {
@@ -17,24 +18,17 @@ class Input {
 		static bool keyHold(Keys key);
 
 		static void onKeyDown(WPARAM keyCode);
+		static void processPressedKeys();
 		static void onKeyUp(WPARAM keyCode);
-
-		static void resetMousePos();
-		static void registerMousePos();
-		static int getMouseDeltaX();
-		static int getMouseDeltaY();
 
 	private:
 		Input()  {};
 		~Input() {};
 
-		static const unsigned short amountKeys = 4;
+		static const unsigned short mAmountKeys = 6;
 
-		static int mousePosX;
-		static int mousePosY;
-
-		static unsigned int keyCodes[];
-		static short keyState[];
+		static unsigned int mKeyCodes[];
+		static short		mKeyState[];
 
 		static Keys findKey(WPARAM keyCode);
 };

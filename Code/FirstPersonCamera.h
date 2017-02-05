@@ -1,3 +1,6 @@
+/* Code by Andreas Palmqvist
+   Based on code by Frank D Luna*/
+
 #ifndef FIRSTPERSONCAMERA_H
 #define FIRSTPERSONCAMERA_H
 
@@ -10,16 +13,15 @@ using namespace DirectX;
 
 class FirstPersonCamera {
 	private:
-		float mStrafeDir;
-		float mWalkDir;
-		float mPitchAngle;
-		float mTurnAngle;
-
 		// Camera 
 		XMFLOAT3 mPos;
 		XMFLOAT3 mRight;
 		XMFLOAT3 mUp;
 		XMFLOAT3 mLook;
+
+		// Walking/Flying
+		XMFLOAT3 mWalkDir; // Defines a plane the camera is restricted to
+		bool     mFlying;
 
 		// Projection (Lens)
 		float mNearPlane;
@@ -35,9 +37,14 @@ class FirstPersonCamera {
 		FirstPersonCamera();
 		virtual ~FirstPersonCamera() {};
 
+		// Set flying mode
+		void setFlyingMode(bool flying);
+
 		// Set matrices.
 		void setView(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR up);
 		void setProj(float fovY, float aspectRatio, float nearPlane, float farPlane);
+
+		XMVECTOR getPos() const;
 
 		// Get matrices.
 		XMMATRIX getViewMatrix() const;
@@ -53,7 +60,7 @@ class FirstPersonCamera {
 
 		void update(float dt);
 
-		// TEMP
+		// Event.
 		void onMouseMove(WPARAM button, int x, int y, int lastX, int lastY);
 };
 

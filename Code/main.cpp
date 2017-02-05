@@ -1,50 +1,58 @@
 #include <windowsx.h>
-#include <DirectXMath.h> // temp
 
 #include "Input.h"
-#include "Rasterizer.h"
+#include "World3D.h"
 #include "PerformanceClock.h"
-#include "FirstPersonCamera.h"
-
-using namespace DirectX; // temp
 
 // Forward declaration
 LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 HWND initWindow(HINSTANCE hInstance);
-HRESULT initApp(HWND hWnd, Rasterizer& rasterizer, int nCmdShow);
+HRESULT initApp(HWND hWnd, int nCmdShow);
 
-FirstPersonCamera camera;
-int lastX = 0;
-int lastY = 0;
+// Some globals
+HWND appWnd;
+World3D world;
+PerformanceClock gameClock;
+
+// For calculating mouse distance moved
+int mouseLastX = 0;
+int mouseLastY = 0;
+
+// The starting client size of this app
+int clientWidth  = 800;
+int clientHeight = 600;
 
 // Entry
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
-	HWND appWnd = initWindow(hInstance);
-	MSG msg = {0};
-	Rasterizer rasterizer;
-	PerformanceClock gameClock;
+	MSG msg = { 0 };
+	
+	appWnd = initWindow(hInstance);
 	gameClock.reset();
 
-	//TEMP
-	camera.setView(XMVectorSet(0.f, 0.f, 5.f, 1.f), XMVectorSet(0.f, 0.f, -1.f, 1.f), XMVectorSet(0.f, 1.f, 0.f, 0.f));
-	camera.setProj(XM_PI * 0.45f, 800.f/640.f, 0.1f, 800.f);
-	//END TEMP
-
 	if (appWnd) {
-		if (FAILED(initApp(appWnd, rasterizer, nCmdShow)))
+		if (FAILED(initApp(appWnd, nCmdShow)))
 			return -1;
 
+		// GAME LOOP
 		while (WM_QUIT != msg.message) {
+			// Message loop
 			if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+				// Handle messages if there are any.
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
+			// Game related updating
 			else {
+				// Tick game clock to be able see how much time passed since last tick.
 				gameClock.tick();
-				camera.update(gameClock.getDeltaTime());
-				rasterizer.setMatrices(XMMatrixIdentity(), camera.getViewMatrix(), camera.getProjMatrix());
-				if(FAILED(rasterizer.render()))
+
+				// Update and render world
+				world.update(gameClock.getDeltaTime());
+				if(FAILED(world.render()))
 					return -1;
+
+				// Change pressed keys to held down keys. Necessary because of how the message handle works.
+				Input::processPressedKeys();
 			}
 		}
 	}
@@ -55,9 +63,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
 LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	switch (message) {
+		// Exit when the window is destroyed.
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
+
+		// Register key press to the Input class.
 		case WM_KEYDOWN:
 			if (wParam == VK_ESCAPE)
 				PostQuitMessage(0);
@@ -66,27 +77,32 @@ LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			return 0;
 
+		// Register key up to the Input class.
 		case WM_KEYUP:
 			Input::onKeyUp(wParam);
 			return 0;
 
+		// Capture mouse to our window when left button is down, every drag registered during mouse capture will produce messages 
+		// regardless where the mouse cursor is on the screen.
 		case WM_LBUTTONDOWN:
-			lastX = GET_X_LPARAM(lParam);
-			lastY = GET_Y_LPARAM(lParam);
+			mouseLastX = GET_X_LPARAM(lParam);
+			mouseLastY = GET_Y_LPARAM(lParam);
 
 			SetCapture(hWnd);
 
 			return 0;
 
+		// Free the mouse capture so the mouse can be used outside of the application.
 		case WM_LBUTTONUP:
 			ReleaseCapture();
 			return 0;
 
+		// When mouse is captured, register distance the mouse moves.
 		case WM_MOUSEMOVE:
-			camera.onMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), lastX, lastY);
+			world.onMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), mouseLastX, mouseLastY);
 
-			lastX = GET_X_LPARAM(lParam);
-			lastY = GET_Y_LPARAM(lParam);
+			mouseLastX = GET_X_LPARAM(lParam);
+			mouseLastY = GET_Y_LPARAM(lParam);
 			
 			return 0;
 	}
@@ -94,6 +110,7 @@ LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
+// Initializes out one and only window.
 HWND initWindow(HINSTANCE hInstance) {
 	// Describe a window class
 	WNDCLASSEX wndClassEx;
@@ -110,7 +127,7 @@ HWND initWindow(HINSTANCE hInstance) {
 		return false;
 
 	// Adjust size of window
-	RECT clientRect = {0, 0, 800, 640};
+	RECT clientRect = {0, 0, clientWidth, clientHeight};
 	AdjustWindowRect(&clientRect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	// Create the window.
@@ -131,9 +148,10 @@ HWND initWindow(HINSTANCE hInstance) {
 	return hWnd;
 }
 
-HRESULT initApp(HWND hWnd, Rasterizer& rasterizer, int nCmdShow) {
+// Inits all of the app.
+HRESULT initApp(HWND hWnd, int nCmdShow) {
 	HRESULT hr;
-	if (FAILED(hr = rasterizer.initDirect3D(hWnd, 800, 640)))
+	if (FAILED(hr = world.init(hWnd, clientWidth, clientHeight, 5, false)))
 		return hr;
 
 	ShowWindow(hWnd, nCmdShow);

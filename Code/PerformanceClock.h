@@ -1,3 +1,5 @@
+/* Code by Frank D Luna*/
+
 #ifndef PERFORMANCECLOCK_H
 #define PERFORMANCECLOCK_H
 

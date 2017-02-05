@@ -1,14 +1,14 @@
 /*
 ---------------------------------------------------------------------------
-Rasterizer.h
+Renderer3D.h
 
-The rasterizer class encapsulates all Com objects and handels the rendering
+The Renderer3D class encapsulates all Com objects and handels the rendering
 of the project.
 ---------------------------------------------------------------------------
 */
 
-#ifndef RASTERIZER_H
-#define RASTERIZER_H
+#ifndef RENDERER3D_H
+#define RENDERER3D_H
 
 #include <assert.h>
 #include <windows.h>
@@ -21,15 +21,13 @@ of the project.
 
 using namespace DirectX;
 
-class Rasterizer {
+struct Vertex {
+	float x, y, z;
+	float r, g, b;
+};
+
+class Renderer3D {
 	private:
-		struct Vertex {
-			float x, y, z;
-			float r, g, b;
-		};
-
-		static bool instantiated;
-
 		HWND hostWndHandle;
 
 		// COM Objects
@@ -55,8 +53,8 @@ class Rasterizer {
 		Matrices matrices;
 
 	public:
-		Rasterizer();
-		virtual ~Rasterizer();
+		Renderer3D();
+		virtual ~Renderer3D();
 
 		HRESULT initDirect3D(HWND hWnd, int clientWidth, int clientHeight);
 

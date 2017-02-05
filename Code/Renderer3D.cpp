@@ -1,11 +1,6 @@
-#include "Rasterizer.h"
+#include "Renderer3D.h"
 
-bool Rasterizer::instantiated = false;
-
-Rasterizer::Rasterizer() {
-	assert(!instantiated);
-	instantiated = true;
-
+Renderer3D::Renderer3D() {
 	gDevice             = nullptr;
 	gDeviceContext      = nullptr;
 	gSwapChain          = nullptr;
@@ -20,7 +15,7 @@ Rasterizer::Rasterizer() {
 	gPixelShader        = nullptr;
 }
 
-Rasterizer::~Rasterizer() {
+Renderer3D::~Renderer3D() {
 	if (gDevice != nullptr)
 		gDevice->Release();
 
@@ -56,11 +51,9 @@ Rasterizer::~Rasterizer() {
 
 	if (gPixelShader != nullptr)
 		gPixelShader->Release();
-
-	instantiated = false;
 }
 
-HRESULT Rasterizer::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
+HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	HRESULT hr;
 
 	// Set window handle
@@ -299,13 +292,13 @@ HRESULT Rasterizer::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	return hr;
 }
 
-void Rasterizer::setMatrices(FXMMATRIX worldMatrix, FXMMATRIX viewMatrix, FXMMATRIX projMatrix) {
+void Renderer3D::setMatrices(FXMMATRIX worldMatrix, FXMMATRIX viewMatrix, FXMMATRIX projMatrix) {
 	matrices.worldMatrix = worldMatrix;
 	matrices.viewMatrix  = viewMatrix;
 	matrices.projMatrix  = projMatrix;
 }
 
-HRESULT Rasterizer::render() {
+HRESULT Renderer3D::render() {
 	HRESULT hr;
 
 	// Clear the buffers.
