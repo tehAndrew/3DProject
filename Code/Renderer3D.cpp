@@ -1,68 +1,105 @@
 #include "Renderer3D.h"
 
 Renderer3D::Renderer3D() {
-	gDevice             = nullptr;
-	gDeviceContext      = nullptr;
-	gSwapChain          = nullptr;
-	gRenderTargetView   = nullptr;
-	gDepthStencilView   = nullptr;
-	gDepthStencilBuffer = nullptr;
-	gVertexBuffer       = nullptr;
-	gConstBuffer        = nullptr;
-	gVertexLayout       = nullptr;
-	gVertexShader       = nullptr;
-	gGeometryShader     = nullptr;
-	gPixelShader        = nullptr;
+	mDevice             = nullptr;
+	mDeviceContext      = nullptr;
+	mSwapChain          = nullptr;
+	mRenderTargetView   = nullptr;
+	mDepthStencilView   = nullptr;
+	mDepthStencilBuffer = nullptr;
+	mMatrixBuffer       = nullptr;
+	mLightBuffer        = nullptr;
+	mCameraBuffer       = nullptr;
+	mVertexLayout       = nullptr;
+	mVertexShader       = nullptr;
+	mGeometryShader     = nullptr;
+	mPixelShader        = nullptr;
+
+	mCamera         = new FirstPersonCamera();
+	mModels         = new std::vector<Model*>();
+	mTextureManager = new TextureManager();
 }
 
 Renderer3D::~Renderer3D() {
-	if (gDevice != nullptr)
-		gDevice->Release();
+	if (mDevice != nullptr)
+		mDevice->Release();
 
-	if (gDeviceContext != nullptr)
-		gDeviceContext->Release();
+	if (mDeviceContext != nullptr)
+		mDeviceContext->Release();
 
-	if (gSwapChain != nullptr)
-		gSwapChain->Release();
+	if (mSwapChain != nullptr)
+		mSwapChain->Release();
 
-	if (gRenderTargetView != nullptr)
-		gRenderTargetView->Release();
+	if (mRenderTargetView != nullptr)
+		mRenderTargetView->Release();
 
-	if (gDepthStencilView != nullptr)
-		gDepthStencilView->Release();
+	if (mDepthStencilView != nullptr)
+		mDepthStencilView->Release();
 
-	if (gDepthStencilBuffer != nullptr)
-		gDepthStencilBuffer->Release();
+	if (mDepthStencilBuffer != nullptr)
+		mDepthStencilBuffer->Release();
 
-	if (gVertexBuffer != nullptr)
-		gVertexBuffer->Release();
+	if (mMatrixBuffer != nullptr)
+		mMatrixBuffer->Release();
 
-	if (gConstBuffer != nullptr)
-		gConstBuffer->Release();
+	if (mLightBuffer != nullptr)
+		mLightBuffer->Release();
 
-	if (gVertexLayout != nullptr)
-		gVertexLayout->Release();
+	if (mCameraBuffer != nullptr)
+		mCameraBuffer->Release();
 
-	if (gVertexShader != nullptr)
-		gVertexShader->Release();
+	if (mVertexLayout != nullptr)
+		mVertexLayout->Release();
 
-	if (gGeometryShader != nullptr)
-		gGeometryShader->Release();
+	if (mVertexShader != nullptr)
+		mVertexShader->Release();
 
-	if (gPixelShader != nullptr)
-		gPixelShader->Release();
+	if (mGeometryShader != nullptr)
+		mGeometryShader->Release();
+
+	if (mPixelShader != nullptr)
+		mPixelShader->Release();
+
+	delete mTextureManager;
+
+	for (auto itr = mModels->begin(); itr != mModels->end(); ++itr)
+		delete *itr;
+
+	delete mModels;
+}
+
+FirstPersonCamera* Renderer3D::getCamera() const {
+	return mCamera;
+}
+
+void Renderer3D::createModelFromFile(wchar_t* filename, FXMVECTOR pos, FXMVECTOR rot, FXMVECTOR scale, Texture* texture) {
+	Model* model = ModelCreator::loadModel(filename, pos, rot, scale, mDevice, texture);
+	mModels->push_back(model);
+}
+
+void Renderer3D::createFloor(FXMVECTOR pos, FXMVECTOR rot, float side, Texture* texture) {
+	Model* model = ModelCreator::generateFloor(pos, rot, side, mDevice, texture);
+	mModels->push_back(model);
+}
+
+void Renderer3D::createCube(FXMVECTOR pos, FXMVECTOR rot, float side, Texture* texture) {
+	Model* model = ModelCreator::generateCube(pos, rot, side, mDevice, texture);
+	mModels->push_back(model);
+}
+
+void Renderer3D::createTexture(wchar_t* filename, std::string name) {
+	mTextureManager->addTexture(mDevice, mDeviceContext, filename, name);
+}
+
+Texture* Renderer3D::getTexture(std::string name) const {
+	return mTextureManager->getTexture(name);
 }
 
 HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	HRESULT hr;
 
 	// Set window handle
-	hostWndHandle = hWnd;
-
-	// Create matrices.
-	// Initialize constant buffer data
-	matrices.worldMatrix = XMMatrixIdentity();
-	matrices.worldMatrix = XMMatrixTranspose(matrices.worldMatrix);
+	mHostWndHandle = hWnd;
 
 	// Describe the swapchain.
 	DXGI_SWAP_CHAIN_DESC scDesc;
@@ -71,7 +108,7 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	scDesc.BufferCount = 1;                                    // one back buffer
 	scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;     // use 32-bit color
 	scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;      // how swap chain is to be used
-	scDesc.OutputWindow = hostWndHandle;                             // the window to be used
+	scDesc.OutputWindow = mHostWndHandle;                             // the window to be used
 	scDesc.SampleDesc.Count = 4;                               // how many multisamples
 	scDesc.Windowed = true;
 
@@ -85,14 +122,14 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 		NULL,
 		D3D11_SDK_VERSION,
 		&scDesc,
-		&gSwapChain,
-		&gDevice,
+		&mSwapChain,
+		&mDevice,
 		NULL,
-		&gDeviceContext
+		&mDeviceContext
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hostWndHandle, L"Device context and swap chain could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(mHostWndHandle, L"Device context and swap chain could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -110,34 +147,34 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	tDesc.BindFlags        = D3D11_BIND_DEPTH_STENCIL;
 
 	// Create the depth/stencil buffer.
-	if (FAILED(hr = gDevice->CreateTexture2D(&tDesc, 0, &gDepthStencilBuffer))) {
-		MessageBox(hostWndHandle, L"Depth/stencil buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreateTexture2D(&tDesc, 0, &mDepthStencilBuffer))) {
+		MessageBox(mHostWndHandle, L"Depth/stencil buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Create the depth/stencil view.
-	if (FAILED(hr = gDevice->CreateDepthStencilView(gDepthStencilBuffer, 0, &gDepthStencilView))) {
-		MessageBox(hostWndHandle, L"Depth/stencil view could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreateDepthStencilView(mDepthStencilBuffer, 0, &mDepthStencilView))) {
+		MessageBox(mHostWndHandle, L"Depth/stencil view could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Get the address of the back buffer.
 	ID3D11Texture2D* backBuffer = nullptr;
-	if (FAILED(hr = gSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBuffer))) {
-		MessageBox(hostWndHandle, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBuffer))) {
+		MessageBox(mHostWndHandle, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 	
 	// Create the render target view.
-	if (FAILED(hr = gDevice->CreateRenderTargetView(backBuffer, NULL, &gRenderTargetView))) {
-		MessageBox(hostWndHandle, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreateRenderTargetView(backBuffer, NULL, &mRenderTargetView))) {
+		MessageBox(mHostWndHandle, L"Back buffer could not be fetched.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 	// We don't need the texture for the backbuffer anymore.
 	backBuffer->Release();
 
 	// Set render target view and depth/stencil view.
-	gDeviceContext->OMSetRenderTargets(1, &gRenderTargetView, gDepthStencilView);
+	mDeviceContext->OMSetRenderTargets(1, &mRenderTargetView, mDepthStencilView);
 
 	// Describe view port.
 	D3D11_VIEWPORT viewPort;
@@ -149,7 +186,7 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	viewPort.TopLeftY = 0;
 
 	// Set view port.
-	gDeviceContext->RSSetViewports(1, &viewPort);
+	mDeviceContext->RSSetViewports(1, &viewPort);
 
 	// Compile Vertex Shader
 	ID3DBlob* vS = nullptr;
@@ -166,7 +203,7 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hostWndHandle, L"Vertex shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(mHostWndHandle, L"Vertex shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -185,7 +222,7 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hostWndHandle, L"Geometry shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(mHostWndHandle, L"Geometry shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -204,34 +241,35 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	);
 
 	if (FAILED(hr)) {
-		MessageBox(hostWndHandle, L"Pixel shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		MessageBox(mHostWndHandle, L"Pixel shader could not be compiled.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Create vertex-, geometry- and pixel shaders.
-	if (FAILED(hr = gDevice->CreateVertexShader(vS->GetBufferPointer(), vS->GetBufferSize(), nullptr, &gVertexShader))) {
-		MessageBox(hostWndHandle, L"Vertex shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreateVertexShader(vS->GetBufferPointer(), vS->GetBufferSize(), nullptr, &mVertexShader))) {
+		MessageBox(mHostWndHandle, L"Vertex shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
-	if (FAILED(hr = gDevice->CreateGeometryShader(gS->GetBufferPointer(), gS->GetBufferSize(), nullptr, &gGeometryShader))) {
-		MessageBox(hostWndHandle, L"Geometry shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreateGeometryShader(gS->GetBufferPointer(), gS->GetBufferSize(), nullptr, &mGeometryShader))) {
+		MessageBox(mHostWndHandle, L"Geometry shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
-	if (FAILED(hr = gDevice->CreatePixelShader(pS->GetBufferPointer(), pS->GetBufferSize(), nullptr, &gPixelShader))) {
-		MessageBox(hostWndHandle, L"Pixel shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreatePixelShader(pS->GetBufferPointer(), pS->GetBufferSize(), nullptr, &mPixelShader))) {
+		MessageBox(mHostWndHandle, L"Pixel shader could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
 	// Create input layout.
 	D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12 , D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12 , D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24 , D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 
-	if (FAILED(hr = gDevice->CreateInputLayout(inputDesc, ARRAYSIZE(inputDesc), vS->GetBufferPointer(), vS->GetBufferSize(), &gVertexLayout))) {
-		MessageBox(hostWndHandle, L"Input layout could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreateInputLayout(inputDesc, ARRAYSIZE(inputDesc), vS->GetBufferPointer(), vS->GetBufferSize(), &mVertexLayout))) {
+		MessageBox(mHostWndHandle, L"Input layout could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
@@ -241,61 +279,53 @@ HRESULT Renderer3D::initDirect3D(HWND hWnd, int clientWidth, int clientHeight) {
 	vS->Release();
 
 	// Describe constant buffer.
-	D3D11_BUFFER_DESC cbDesc;
-	cbDesc.Usage               = D3D11_USAGE_DYNAMIC;
-	cbDesc.ByteWidth           = sizeof(Matrices);
-	cbDesc.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
-	cbDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
-	cbDesc.MiscFlags           = 0;
-	cbDesc.StructureByteStride = 0;
+	D3D11_BUFFER_DESC cbDesc1;
+	cbDesc1.Usage               = D3D11_USAGE_DYNAMIC;
+	cbDesc1.ByteWidth           = sizeof(MatrixData);
+	cbDesc1.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc1.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	cbDesc1.MiscFlags           = 0;
+	cbDesc1.StructureByteStride = 0;
 
 	// Create constant buffer
-	if (FAILED(hr = gDevice->CreateBuffer(&cbDesc, nullptr, &gConstBuffer))) {
-		MessageBox(hostWndHandle, L"Constant buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	if (FAILED(hr = mDevice->CreateBuffer(&cbDesc1, nullptr, &mMatrixBuffer))) {
+		MessageBox(mHostWndHandle, L"Constant buffer could not be created1.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 
-	// Create temp geometry.
-	Vertex triangleVertices[4] =
-	{
-		{ -100.f, -3.f, -100.f,
-		1.f, 0.f, 0.f },
+	// Describe constant buffer.
+	D3D11_BUFFER_DESC cbDesc2;
+	cbDesc2.Usage			    = D3D11_USAGE_DYNAMIC;
+	cbDesc2.ByteWidth			= sizeof(LightData);
+	cbDesc2.BindFlags			= D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc2.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	cbDesc2.MiscFlags           = 0;
+	cbDesc2.StructureByteStride = 0;
 
-		{ -100.f, -3.f, 100.f,
-		1.f, 0.f, 1.f },
-
-		{100.f, -3.f, -100.f,
-		0.f, 1.f, 1.f },
-
-		{ 100.f, -3.f, 100.f,
-		1.f, 1.f, 1.f }
-	};
-
-	// Describe vertex buffer
-	D3D11_BUFFER_DESC bDesc;
-	ZeroMemory(&bDesc, sizeof(D3D11_BUFFER_DESC));
-
-	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.Usage     = D3D11_USAGE_DEFAULT;
-	bDesc.ByteWidth = sizeof(triangleVertices);
-
-	// The data to tie to the vertex buffer.
-	D3D11_SUBRESOURCE_DATA data;
-	data.pSysMem = triangleVertices;
-
-	// Create the vertex buffer.
-	if(FAILED(hr = gDevice->CreateBuffer(&bDesc, &data, &gVertexBuffer))) {
-		MessageBox(hostWndHandle, L"Vertex buffer could not be created.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	// Create constant buffer
+	if (FAILED(hr = mDevice->CreateBuffer(&cbDesc2, nullptr, &mLightBuffer))) {
+		MessageBox(mHostWndHandle, L"Constant buffer could not be created2.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
+
+	// Describe constant buffer.
+	D3D11_BUFFER_DESC cbDesc3;
+	cbDesc3.Usage				= D3D11_USAGE_DYNAMIC;
+	cbDesc3.ByteWidth			= sizeof(CameraData);
+	cbDesc3.BindFlags			= D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc3.CPUAccessFlags		= D3D11_CPU_ACCESS_WRITE;
+	cbDesc3.MiscFlags			= 0;
+	cbDesc3.StructureByteStride = 0;
+
+	// Create constant buffer
+	if (FAILED(hr = mDevice->CreateBuffer(&cbDesc3, nullptr, &mCameraBuffer))) {
+		MessageBox(mHostWndHandle, L"Constant buffer could not be created3.", L"D3D Error!", MB_OK | MB_ICONERROR);
+		return hr;
+	}
+
+	mTextureManager->initTextureManager(mDevice);
 
 	return hr;
-}
-
-void Renderer3D::setMatrices(FXMMATRIX worldMatrix, FXMMATRIX viewMatrix, FXMMATRIX projMatrix) {
-	matrices.worldMatrix = worldMatrix;
-	matrices.viewMatrix  = viewMatrix;
-	matrices.projMatrix  = projMatrix;
 }
 
 HRESULT Renderer3D::render() {
@@ -303,44 +333,78 @@ HRESULT Renderer3D::render() {
 
 	// Clear the buffers.
 	float clearColor[] = { 0, 0, 0, 1 };
-	gDeviceContext->ClearRenderTargetView(gRenderTargetView, clearColor);
-	gDeviceContext->ClearDepthStencilView(gDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	mDeviceContext->ClearRenderTargetView(mRenderTargetView, clearColor);
+	mDeviceContext->ClearDepthStencilView(mDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	// Set shaders.
-	gDeviceContext->VSSetShader(gVertexShader, nullptr, 0);
-	gDeviceContext->HSSetShader(nullptr, nullptr, 0);
-	gDeviceContext->DSSetShader(nullptr, nullptr, 0);
-	gDeviceContext->GSSetShader(gGeometryShader, nullptr, 0);
-	gDeviceContext->PSSetShader(gPixelShader, nullptr, 0);
-	
-	// Map constant buffer.
-	D3D11_MAPPED_SUBRESOURCE data;
-	if (FAILED(hr = gDeviceContext->Map(gConstBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &data))) {
-		MessageBox(hostWndHandle, L"Constant buffer could not be mapped.", L"D3D Error!", MB_OK | MB_ICONERROR);
-		return hr;
+	mDeviceContext->VSSetShader(mVertexShader, nullptr, 0);
+	mDeviceContext->HSSetShader(nullptr, nullptr, 0);
+	mDeviceContext->DSSetShader(nullptr, nullptr, 0);
+	mDeviceContext->GSSetShader(mGeometryShader, nullptr, 0);
+	mDeviceContext->PSSetShader(mPixelShader, nullptr, 0);
+	// TEMP
+	ID3D11SamplerState* ssTemp = mTextureManager->getSamplerState();
+	mDeviceContext->PSSetSamplers(0, 1, &ssTemp);
+
+	mDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	mDeviceContext->IASetInputLayout(mVertexLayout);
+
+	// Update view  and projection matrices
+	mMatrixData.viewMatrix = mCamera->getViewMatrix();
+	mMatrixData.projMatrix = mCamera->getProjMatrix();
+
+	// Update Light data
+	mLightData.ambientColor  = {0.1f, 0.1f, 0.1f, 1.f};
+	mLightData.diffuseColor  = {1.f, 1.f, 1.f, 1.f};
+	mLightData.specularColor = {0.5f, 0.5f, 0.5f, 1.f};
+	mLightData.lightPos      = {0.f, 1000.f, 0.f, 1.f};
+	mLightData.specPow       = 64.f;
+
+	// Update camera pos
+	XMStoreFloat4(&mCameraData.cameraPos, mCamera->getPos());
+
+	for (auto it = mModels->begin(); it != mModels->end(); ++it) {
+		// Get world matrix of current model.
+		mMatrixData.worldMatrix = (*it)->getWorldMatrix();
+
+		// Map constant buffer.
+		D3D11_MAPPED_SUBRESOURCE data;
+		if (FAILED(hr = mDeviceContext->Map(mMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &data))) {
+			MessageBox(mHostWndHandle, L"Constant buffer could not be mapped.", L"D3D Error!", MB_OK | MB_ICONERROR);
+			return hr;
+		}
+		memcpy(data.pData, &mMatrixData, sizeof(MatrixData));
+		mDeviceContext->Unmap(mMatrixBuffer, 0);
+
+		// Map constant buffer.
+		//D3D11_MAPPED_SUBRESOURCE data;
+		if (FAILED(hr = mDeviceContext->Map(mLightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &data))) {
+			MessageBox(mHostWndHandle, L"Constant buffer could not be mapped.", L"D3D Error!", MB_OK | MB_ICONERROR);
+			return hr;
+		}
+		memcpy(data.pData, &mLightData, sizeof(LightData));
+		mDeviceContext->Unmap(mLightBuffer, 0);
+
+		// Map constant buffer.
+		//D3D11_MAPPED_SUBRESOURCE data;
+		if (FAILED(hr = mDeviceContext->Map(mCameraBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &data))) {
+			MessageBox(mHostWndHandle, L"Constant buffer could not be mapped.", L"D3D Error!", MB_OK | MB_ICONERROR);
+			return hr;
+		}
+		memcpy(data.pData, &mCameraData, sizeof(CameraData));
+		mDeviceContext->Unmap(mCameraBuffer, 0);
+
+		// Send matrices to geometry shader.
+		mDeviceContext->GSSetConstantBuffers(0, 1, &mMatrixBuffer);
+
+		mDeviceContext->PSSetConstantBuffers(0, 1, &mLightBuffer);
+		mDeviceContext->PSSetConstantBuffers(1, 1, &mCameraBuffer);
+
+		(*it)->render(mDeviceContext);
 	}
-
-	// Write to the constant buffer.
-	memcpy(data.pData, &matrices, sizeof(Matrices));
-
-	// Unmap the constant buffer.
-	gDeviceContext->Unmap(gConstBuffer, 0);
-
-	// Send matrices to geometry shader.
-	gDeviceContext->GSSetConstantBuffers(0, 1, &gConstBuffer);
-
-	// Render
-	UINT32 vertexSize = sizeof(Vertex);
-	UINT32 offset = 0;
-	gDeviceContext->IASetVertexBuffers(0, 1, &gVertexBuffer, &vertexSize, &offset);
-
-	gDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	gDeviceContext->IASetInputLayout(gVertexLayout);
-
-	gDeviceContext->Draw(4, 0);
-
-	if (FAILED(hr = gSwapChain->Present(0, 0))) {
-		MessageBox(hostWndHandle, L"Swap chain failed to switch buffers.", L"D3D Error!", MB_OK | MB_ICONERROR);
+	
+	if (FAILED(hr = mSwapChain->Present(0, 0))) {
+		MessageBox(mHostWndHandle, L"Swap chain failed to switch buffers.", L"D3D Error!", MB_OK | MB_ICONERROR);
 		return hr;
 	}
 

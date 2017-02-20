@@ -11,17 +11,13 @@ FirstPersonCamera::FirstPersonCamera() {
 	XMStoreFloat3(&mUp, XMVectorZero());
 	XMStoreFloat3(&mLook, XMVectorZero());
 
-	float mNearPlane   = 0;
-	float mFarPlane    = 0;
-	float mAspectRatio = 0;
-	float mFovY        = 0;
+	float mNearPlane   = 0.1f;
+	float mFarPlane    = 1.f;
+	float mAspectRatio = 1.f;
+	float mFovY        = 0.1f;
 
 	XMStoreFloat4x4(&mViewMatrix, XMMatrixIdentity());
 	XMStoreFloat4x4(&mProjMatrix, XMMatrixIdentity());
-}
-
-void FirstPersonCamera::setFlyingMode(bool flying) {
-	mFlying = flying;
 }
 
 void FirstPersonCamera::setView(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR up) {
@@ -118,20 +114,20 @@ void FirstPersonCamera::update(float dt) {
 	// Walking
 	if (!(Input::keyHold(Input::W_KEY) && Input::keyHold(Input::S_KEY))) {
 		if (Input::keyHold(Input::W_KEY)) {
-			walk(30.f * dt);
+			walk(200.f * dt);
 		}
 		if (Input::keyHold(Input::S_KEY)) {
-			walk(-30.f * dt);
+			walk(-200.f * dt);
 		}
 	}
 
 	// Strafing
 	if (!(Input::keyHold(Input::A_KEY) && Input::keyHold(Input::D_KEY))) {
 		if (Input::keyHold(Input::A_KEY)) {
-			strafe(-30.f * dt);
+			strafe(-200.f * dt);
 		}
 		if (Input::keyHold(Input::D_KEY)) {
-			strafe(30.f * dt);
+			strafe(200.f * dt);
 		}
 	}
 

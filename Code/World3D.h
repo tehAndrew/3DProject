@@ -10,7 +10,6 @@ using namespace DirectX;
 
 class World3D {
 	private:
-		FirstPersonCamera mCamera;
 		Renderer3D		  mRenderer;
 
 		int mScreenWidth;
@@ -23,7 +22,7 @@ class World3D {
 		// Event
 		void onMouseMove(WPARAM button, int x, int y, int lastX, int lastY);
 
-		HRESULT init(HWND hWnd, int screenWidth, int screenHeight, float cameraHeight, bool flying);
+		HRESULT init(HWND hWnd, int screenWidth, int screenHeight, float cameraHeight);
 		void update(double deltaTime);
 		HRESULT render();
 

@@ -37,9 +37,6 @@ class FirstPersonCamera {
 		FirstPersonCamera();
 		virtual ~FirstPersonCamera() {};
 
-		// Set flying mode
-		void setFlyingMode(bool flying);
-
 		// Set matrices.
 		void setView(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR up);
 		void setProj(float fovY, float aspectRatio, float nearPlane, float farPlane);

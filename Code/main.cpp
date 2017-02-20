@@ -1,4 +1,6 @@
 #include <windowsx.h>
+#include <cstdlib>
+#include <ctime>
 
 #include "Input.h"
 #include "World3D.h"
@@ -19,13 +21,16 @@ int mouseLastX = 0;
 int mouseLastY = 0;
 
 // The starting client size of this app
-int clientWidth  = 800;
-int clientHeight = 600;
+int clientWidth  = 1280;
+int clientHeight = 800;
 
 // Entry
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
 	MSG msg = { 0 };
 	
+	// Init rng
+	std::srand(std::time(NULL));
+
 	appWnd = initWindow(hInstance);
 	gameClock.reset();
 
@@ -151,7 +156,7 @@ HWND initWindow(HINSTANCE hInstance) {
 // Inits all of the app.
 HRESULT initApp(HWND hWnd, int nCmdShow) {
 	HRESULT hr;
-	if (FAILED(hr = world.init(hWnd, clientWidth, clientHeight, 5, false)))
+	if (FAILED(hr = world.init(hWnd, clientWidth, clientHeight, 30)))
 		return hr;
 
 	ShowWindow(hWnd, nCmdShow);

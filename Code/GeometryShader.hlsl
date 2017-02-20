@@ -1,13 +1,14 @@
 struct VS_OUT {
-	float4 Pos   : POSITION;
-	float3 Color : COLOR;
+	float4 PosL      : POSITION;
+	float3 NormalL   : NORMAL;
+	float2 TexCoord  : TEXCOORD;
 };
 
 struct GS_OUT {
-	float4 Pos      : SV_POSITION;
-	float4 WorldPos : POSITION;
-	float3 Normal   : NORMAL;
-	float3 Color    : COLOR;
+	float4 PosWVP   : SV_POSITION;
+	float4 PosW     : POSITION;
+	float3 NormalW  : NORMAL;
+	float2 TexCoord : TEXCOORD;
 };
 
 cbuffer Matrices : register(b0) {
@@ -20,19 +21,16 @@ cbuffer Matrices : register(b0) {
 void GS_Main(triangle VS_OUT input[3], inout TriangleStream<GS_OUT> outputStream) {
 	GS_OUT output[3];
 
-	float3 normal = cross(input[1].Pos.xyz - input[0].Pos.xyz, input[2].Pos.xyz - input[0].Pos.xyz);
-	normal = mul(normal, (float3x3) worldMatrix);
-	normal = normalize(normal);
-
 	for (uint i = 0; i < 3; i++) {
-		output[i].Normal = normal;
-		output[i].Color = input[i].Color;
-		output[i].Pos = input[i].Pos;
+		output[i].NormalW  = mul(input[i].NormalL, (float3x3) worldMatrix);
+		output[i].NormalW  = normalize(output[i].NormalW);
+		output[i].TexCoord = input[i].TexCoord;
+		output[i].PosWVP   = input[i].PosL;
 
-		output[i].Pos = mul(output[i].Pos, worldMatrix);
-		output[i].WorldPos = output[i].Pos;
-		output[i].Pos = mul(output[i].Pos, viewMatrix);
-		output[i].Pos = mul(output[i].Pos, projMatrix);
+		output[i].PosWVP = mul(output[i].PosWVP, worldMatrix);
+		output[i].PosW   = output[i].PosWVP;
+		output[i].PosWVP = mul(output[i].PosWVP, viewMatrix);
+		output[i].PosWVP = mul(output[i].PosWVP, projMatrix);
 
 		outputStream.Append(output[i]);
 	}
