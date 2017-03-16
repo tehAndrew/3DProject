@@ -114,20 +114,20 @@ void FirstPersonCamera::update(float dt) {
 	// Walking
 	if (!(Input::keyHold(Input::W_KEY) && Input::keyHold(Input::S_KEY))) {
 		if (Input::keyHold(Input::W_KEY)) {
-			walk(200.f * dt);
+			walk(100.f * dt);
 		}
 		if (Input::keyHold(Input::S_KEY)) {
-			walk(-200.f * dt);
+			walk(-100.f * dt);
 		}
 	}
 
 	// Strafing
 	if (!(Input::keyHold(Input::A_KEY) && Input::keyHold(Input::D_KEY))) {
 		if (Input::keyHold(Input::A_KEY)) {
-			strafe(-200.f * dt);
+			strafe(-100.f * dt);
 		}
 		if (Input::keyHold(Input::D_KEY)) {
-			strafe(200.f * dt);
+			strafe(100.f * dt);
 		}
 	}
 

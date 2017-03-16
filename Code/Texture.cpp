@@ -1,7 +1,6 @@
 #include "Texture.h"
 
 Texture::Texture() {
-	//mTargaData = nullptr;
 	mTexture = nullptr;
 	mTextureView = nullptr;
 }
@@ -18,8 +17,10 @@ HRESULT Texture::loadTexture(ID3D11Device* device, ID3D11DeviceContext* deviceCo
 	// Load texture can only be called once for a Texture object.
 	assert(!mTextureLoaded);
 	HRESULT hr;
+	wchar_t fullFilename[128] = L".\\Models\\";
+	wcscat(fullFilename, filename);
 
-	if (FAILED(hr = CreateDDSTextureFromFile(device, deviceContext, filename, (ID3D11Resource**) &mTexture, &mTextureView)))
+	if (FAILED(hr = CreateDDSTextureFromFile(device, deviceContext, fullFilename, (ID3D11Resource**) &mTexture, &mTextureView)))
 		return hr;
 
 	mTextureLoaded = true;

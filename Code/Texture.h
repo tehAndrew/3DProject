@@ -2,7 +2,7 @@
 
 #ifndef TEXTURE_H
 #define TEXTURE_H
-
+#pragma warning(disable: 4996)
 #include <stdio.h>
 #include <assert.h>
 

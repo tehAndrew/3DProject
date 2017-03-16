@@ -9,13 +9,14 @@
 #include <sstream>
 
 #include "Model.h"
+#include "TextureManager.h"
 
 using namespace DirectX;
 
 class ModelCreator {
 	public:
-		static Model* loadModel(wchar_t* filename, FXMVECTOR pos, FXMVECTOR rot, FXMVECTOR scale, ID3D11Device* device, Texture* texture);
-		static Model* generateFloor(FXMVECTOR pos, FXMVECTOR rotation, float side, ID3D11Device* device, Texture* texture);
+		static Model* loadModel(wchar_t* filename, FXMVECTOR pos, FXMVECTOR rot, FXMVECTOR scale, ID3D11Device* device, ID3D11DeviceContext* deviceContext, TextureManager* textureManager);
+		static Model* generateFloor(FXMVECTOR pos, FXMVECTOR rotation, float side, ID3D11Device* device, float detail, FXMVECTOR reflectiveColor, float gloss, Texture* texture);
 		static Model* generateCube(FXMVECTOR pos, FXMVECTOR rotation, float side, ID3D11Device* device, Texture* texture);
 };
 

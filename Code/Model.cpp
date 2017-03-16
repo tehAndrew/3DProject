@@ -3,11 +3,12 @@
 #include <cstdlib>
 
 Model::Model() {
-	mVertexBuffer = nullptr;
-	mIndexBuffer = nullptr;
+	mVertexBuffer   = nullptr;
+	mIndexBuffer    = nullptr;
+	mMaterialBuffer = nullptr;
 
 	mVertexAmount = 0;
-	mIndexAmount = 0;
+	mIndexAmount  = 0;
 
 	mX = 0.f;
 	mY = 0.f;
@@ -27,8 +28,12 @@ Model::Model() {
 Model::~Model() {
 	if (mVertexBuffer != nullptr)
 		mVertexBuffer->Release();
+
 	if (mIndexBuffer != nullptr)
 		mIndexBuffer->Release();
+
+	if (mMaterialBuffer != nullptr)
+		mMaterialBuffer->Release();
 }
 
 void Model::setPos(FXMVECTOR pos) {
@@ -68,45 +73,55 @@ XMMATRIX Model::getWorldMatrix() const {
 	return XMMatrixTranspose(worldMatrix);
 }
 
-HRESULT Model::defineGeometry(std::vector<Vertex> *vertices, std::vector<UINT32> *indices, ID3D11Device* device, Texture* texture) {
+ID3D11ShaderResourceView* Model::getTexture() const {
+	return mTexture->getTexture();
+}
+
+ID3D11Buffer* Model::getMaterial() const {
+	return mMaterialBuffer;
+}
+
+HRESULT Model::defineGeometry(std::vector<Vertex> *vertices, std::vector<UINT32> *indices, ID3D11Device* device, Texture* texture, MaterialData material) {
 	mVertexAmount = vertices->size();
 	mIndexAmount  = indices->size();
-	
-	// VERTEX BUFFER
-	// Buffer descriptions
+	mMaterial = material;
+
 	HRESULT hr;
+	D3D11_BUFFER_DESC vertexBufferDesc, indexBufferDesc, materialBufferDesc;
+	D3D11_SUBRESOURCE_DATA vertexData, indexData, materialData;
+	ZeroMemory(&vertexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	ZeroMemory(&indexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	ZeroMemory(&materialBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	
+	// Create vertex buffer.
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.Usage     = D3D11_USAGE_DEFAULT;
+	vertexBufferDesc.ByteWidth = sizeof(Vertex) * vertices->size();
 
-	D3D11_BUFFER_DESC vbDesc;
-	ZeroMemory(&vbDesc, sizeof(D3D11_BUFFER_DESC));
+	vertexData.pSysMem = const_cast<Vertex*>(vertices->data());
 
-	vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbDesc.Usage     = D3D11_USAGE_DEFAULT;
-	vbDesc.ByteWidth = sizeof(Vertex) * vertices->size();
-
-	D3D11_SUBRESOURCE_DATA vdata;
-	vdata.pSysMem = const_cast<Vertex*>(vertices->data());
-
-	// Create the vertex buffer.
-	if (FAILED(hr = device->CreateBuffer(&vbDesc, &vdata, &mVertexBuffer))) {
+	if (FAILED(hr = device->CreateBuffer(&vertexBufferDesc, &vertexData, &mVertexBuffer)))
 		return hr;
-	}
 
-	// INDEX BUFFER
-	// Buffer descriptions
-	D3D11_BUFFER_DESC ibDesc;
-	ZeroMemory(&ibDesc, sizeof(D3D11_BUFFER_DESC));
+	// Create index buffer.
+	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBufferDesc.Usage     = D3D11_USAGE_DEFAULT;
+	indexBufferDesc.ByteWidth = sizeof(unsigned int) * indices->size();
 
-	ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	ibDesc.Usage = D3D11_USAGE_DEFAULT;
-	ibDesc.ByteWidth = sizeof(UINT32) * indices->size();
+	indexData.pSysMem = const_cast<unsigned int*>(indices->data());
 
-	D3D11_SUBRESOURCE_DATA idata;
-	idata.pSysMem = const_cast<UINT32*>(indices->data());
-
-	// Create the vertex buffer.
-	if (FAILED(hr = device->CreateBuffer(&ibDesc, &idata, &mIndexBuffer))) {
+	if (FAILED(hr = device->CreateBuffer(&indexBufferDesc, &indexData, &mIndexBuffer)))
 		return hr;
-	}
+
+	// Create material buffer.
+	materialBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	materialBufferDesc.Usage     = D3D11_USAGE_DEFAULT;
+	materialBufferDesc.ByteWidth = sizeof(MaterialData);
+
+	materialData.pSysMem = const_cast<MaterialData*>(&mMaterial);
+
+	if (FAILED(hr = device->CreateBuffer(&materialBufferDesc, &materialData, &mMaterialBuffer)))
+		return hr;
 	
 	mTexture = texture;
 
@@ -118,13 +133,7 @@ void Model::render(ID3D11DeviceContext* deviceContext) {
 	UINT32 stride = sizeof(Vertex);
 	UINT32 offset = 0;
 
-	ID3D11ShaderResourceView *srvTemp = mTexture->getTexture();
-	deviceContext->PSSetShaderResources(0, 1, &srvTemp);
-
-	// Set the vertex buffer to active in the input assembler so it can be rendered.
 	deviceContext->IASetVertexBuffers(0, 1, &mVertexBuffer, &stride, &offset);
-
-	// Set the index buffer to active in the input assembler so it can be rendered.
 	deviceContext->IASetIndexBuffer(mIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 	deviceContext->DrawIndexed(mIndexAmount, 0, 0);

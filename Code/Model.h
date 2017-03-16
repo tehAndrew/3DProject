@@ -15,10 +15,16 @@ struct Vertex {
 	float u, v;
 };
 
+struct MaterialData {
+	XMVECTOR reflectiveColor;
+	float gloss;
+};
+
 class Model {
 	private:
 		ID3D11Buffer* mVertexBuffer;
 		ID3D11Buffer* mIndexBuffer;
+		ID3D11Buffer* mMaterialBuffer;
 
 		UINT32 mVertexAmount;
 		UINT32 mIndexAmount;
@@ -35,18 +41,22 @@ class Model {
 		float mRotY;
 		float mRotZ;
 
+		MaterialData mMaterial;
 		Texture* mTexture;
 
 	public:
 		Model();
 		virtual ~Model();
 
-		HRESULT defineGeometry(std::vector<Vertex> *vertices, std::vector<UINT32> *indices, ID3D11Device* device, Texture* texture);
+		HRESULT defineGeometry(std::vector<Vertex> *vertices, std::vector<unsigned int> *indices, ID3D11Device* device, Texture* texture, MaterialData material);
 
 		void setPos(FXMVECTOR pos);
 		void setScale(FXMVECTOR scale);
 		void setRot(FXMVECTOR rot);
-		XMMATRIX getWorldMatrix() const;
+
+		XMMATRIX                  getWorldMatrix() const;
+		ID3D11ShaderResourceView* getTexture() const;
+		ID3D11Buffer*             getMaterial() const;
 
 		void render(ID3D11DeviceContext* deviceContext);
 };

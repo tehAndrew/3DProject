@@ -34,12 +34,15 @@ SOFTWARE.
 #include <sstream>
 #include <string>
 #include <vector>
+#include <locale>
 #include <forward_list>
 
 using namespace std;
 
+#define PATH_SIZE 64
+
 enum Report {
-	ERROR_FILE_NOT_FOUND, ERROR_UNCOMPATIBLE_OBJ, SUCCESS
+	ERROR_FILE_NOT_FOUND, ERROR_UNCOMPATIBLE_OBJ, ERROR_MTL_NOT_FOUND, ERROR_UNCOMPATIBLE_MTL, ERROR_NO_MTL, SUCCESS
 };
 
 enum Primitive {
@@ -58,6 +61,14 @@ struct Vertex {
 	float x, y, z;
 	float nx, ny, nz;
 	float u, v;
+};
+
+struct AOBJHeader {
+	unsigned int vertexAmount;
+	unsigned int indexAmount;
+	wchar_t colorMapFilename[64];
+	float refcR, refcG, refcB;
+	float gloss;
 };
 
 class VertexMap {
@@ -142,6 +153,7 @@ class VertexMap {
 Report convertObjFile(string filename);
 string interpretReport(Report report);
 Primitive whatPrimitive(string line);
+void stringToWchar(wchar_t* dest, string* source);
 
 int main() {
 	string filename;
@@ -157,9 +169,14 @@ int main() {
 		cout << endl;
 		cout << interpretReport(convertObjFile(filename)) << endl << endl;
 	}
+
+	return 0;
 }
 
 Report convertObjFile(string filename) {
+	unsigned int mtlErrorCheck = 0;
+	bool mtlLocated = false;
+	
 	string inputFilename, outputFilename;
 	inputFilename = filename;
 	
@@ -171,11 +188,13 @@ Report convertObjFile(string filename) {
 	vector<unsigned int> primitives;
 	vector<unsigned int> indices;
 
+	AOBJHeader header;
 	VertexMap* vertexMap = nullptr;
 	unsigned int currentIndex = 0;
 
 	cout << "-Trying to open " << inputFilename << "..." << endl << endl;
-	ifstream input(inputFilename);
+	ifstream input;
+	input.open(inputFilename, ios::in);
 	if (!input.is_open())
 		return ERROR_FILE_NOT_FOUND;
 
@@ -184,8 +203,41 @@ Report convertObjFile(string filename) {
 	cout << "-Reading data..." << endl << endl;
 	while (getline(input, line)) {
 		istringstream inputString(line);
+		// Material filereading
+		if (line.substr(0, 6) == "mtllib") {
+			string mtlLine;
+			string mtlFilename;
+			inputString >> tempStr >> mtlFilename;
+
+			ifstream mtlInput;
+			mtlInput.open(mtlFilename, ios::in);
+			if (!mtlInput.is_open())
+				return ERROR_MTL_NOT_FOUND;
+
+			while (getline(mtlInput, mtlLine)) {
+				istringstream mtlInputString(mtlLine);
+				if (mtlLine.substr(0, 2) == "Ns") {
+					mtlInputString >> tempStr >> header.gloss;
+					mtlErrorCheck++;
+				}
+				else if (mtlLine.substr(0, 2) == "Ks") {
+					mtlInputString >> tempStr >> header.refcR >> header.refcG >> header.refcB;
+					mtlErrorCheck++;
+				}
+				else if (mtlLine.substr(0, 6) == "map_Kd") {
+					string colorMapFilenameStr;
+					mtlInputString >> tempStr >> colorMapFilenameStr;
+					stringToWchar(header.colorMapFilename, &colorMapFilenameStr);
+					mtlErrorCheck++;
+				}
+			}
+
+			if (mtlErrorCheck != 3)
+				return ERROR_UNCOMPATIBLE_MTL;
+			mtlLocated = true;
+		}
 		// Vertex reading
-		if (line.substr(0, 2) == "v ") {
+		else if (line.substr(0, 2) == "v ") {
 			ObjCoord objVertex;
 			inputString >> tempStr >> objVertex.x >> objVertex.y >> objVertex.z;
 			objVertices.push_back(objVertex);
@@ -204,6 +256,7 @@ Report convertObjFile(string filename) {
 		}
 		// Face reading
 		else if (line.substr(0, 2) == "f ") {
+			unsigned int tempPriIndices[4] = {0};
 			if (vertexMap == nullptr) {
 				cout << "-Interpreting data..." << endl << endl;
 				vertexMap = new VertexMap(objVertices.size());
@@ -227,7 +280,7 @@ Report convertObjFile(string filename) {
 
 			for (int i = 0; i < primitive; i++) {
 				if (vertexMap->entryInMap(faceArr[i])) {
-					indices.push_back(vertexMap->findEntryIndex(faceArr[i]));
+					tempPriIndices[i] = vertexMap->findEntryIndex(faceArr[i]);
 				}
 				else {
 					unsigned int vectorIndices[3] = { 0 };
@@ -255,40 +308,51 @@ Report convertObjFile(string filename) {
 					vertexMap->addEntry(faceArr[i], currentIndex);
 
 					vertices.push_back(vertex);
-					indices.push_back(currentIndex++);
+					tempPriIndices[i] = currentIndex++;
 				}
 			}
+			if (primitive == TRIANGLE) {
+				indices.push_back(tempPriIndices[0]);
+				indices.push_back(tempPriIndices[1]);
+				indices.push_back(tempPriIndices[2]);
+			}
+			else if (primitive == QUAD) {
+				indices.push_back(tempPriIndices[0]);
+				indices.push_back(tempPriIndices[1]);
+				indices.push_back(tempPriIndices[2]);
+				indices.push_back(tempPriIndices[0]);
+				indices.push_back(tempPriIndices[2]);
+				indices.push_back(tempPriIndices[3]);
+			}
+
 			delete[] faceArr;
 		}
 	}
 
+	if (!mtlLocated)
+		return ERROR_NO_MTL;
+
 	input.close();
 	delete vertexMap;
 
-	// Write
 	outputFilename = inputFilename;
 	outputFilename.insert(outputFilename.find_last_of('o'), "a");
 
 	cout << "Writing converted data to " << outputFilename << "..." << endl;
-	ofstream output(outputFilename);
+	ofstream output;
+	output.open(outputFilename, ios::out | ios::binary);
 
-	output << "Vertices\n";
-	for (int i = 0; i < vertices.size(); i++) {
-		output << vertices.at(i).x << " " << vertices.at(i).y << " " << vertices.at(i).z << " ";
-		output << vertices.at(i).nx << " " << vertices.at(i).ny << " " << vertices.at(i).nz << " ";
-		output << vertices.at(i).u << " " << vertices.at(i).v << "\n";
-	}
-	output << "Indices\n";
-	int indicesIndex = 0;
-	for (int i = 0; i < primitives.size(); i++) {
-		if (primitives.at(i) == TRIANGLE)
-			output << "3 " << indices.at(indicesIndex) << " " << indices.at(indicesIndex + 1) << " " << indices.at(indicesIndex + 2) << "\n";
-		else if (primitives.at(i) == QUAD)
-			output << "4 " << indices.at(indicesIndex) << " " << indices.at(indicesIndex + 1) << " " << indices.at(indicesIndex + 2) << " "
-				   << indices.at(indicesIndex) << " " << indices.at(indicesIndex + 2) << " " << indices.at(indicesIndex + 3) << "\n";
-		indicesIndex += primitives.at(i);
-	}
+	header.vertexAmount = vertices.size();
+	header.indexAmount = indices.size();
+
+	output.write((char*)&header, sizeof(AOBJHeader));
+	for (int i = 0; i < vertices.size(); i++)
+		output.write((char*)&vertices.at(i), sizeof(Vertex));
+	for (int i = 0; i < indices.size(); i++)
+		output.write((char*)&indices.at(i), sizeof(unsigned int));
+
 	output.close();
+
 	return SUCCESS;
 }
 
@@ -299,6 +363,15 @@ string interpretReport(Report report) {
 			break;
 		case ERROR_UNCOMPATIBLE_OBJ:
 			return "ERROR! The obj file is not compatible with this program.\nThis program only supports obj files that index using either triangles or quads. It also must contain v, vt and vn!";
+			break;
+		case ERROR_MTL_NOT_FOUND:
+			return "ERROR! Mtl not found. \nCheck if the file is referenced correctly in the obj file.";
+			break;
+		case ERROR_UNCOMPATIBLE_MTL:
+			return "ERROR! Uncompatible mtl file. \nCan be many reasons.";
+			break;
+		case ERROR_NO_MTL:
+			return "ERROR! No mtl reference in obj file. \nAdd one.";
 			break;
 		case SUCCESS:
 			return "SUCCESS! The file was successfully converted.";
@@ -319,4 +392,11 @@ Primitive whatPrimitive(string line) {
 		return (Primitive) count;
 	else
 		return UNKNOWN;
+}
+
+void stringToWchar(wchar_t* dest, string* source) {
+	wstring wstr(source->begin(), source->end());
+	
+	const wchar_t* wcstr = wstr.c_str();
+	wcscpy(dest, wcstr);
 }

@@ -14,6 +14,8 @@ class World3D {
 
 		int mScreenWidth;
 		int mScreenHeight;
+		float mNearPlane;
+		float mFarPlane;
 
 	public:
 		World3D();
@@ -22,7 +24,7 @@ class World3D {
 		// Event
 		void onMouseMove(WPARAM button, int x, int y, int lastX, int lastY);
 
-		HRESULT init(HWND hWnd, int screenWidth, int screenHeight, float cameraHeight);
+		HRESULT init(HWND hWnd, int screenWidth, int screenHeight, float nearPlane, float farPlane, float cameraHeight);
 		void update(double deltaTime);
 		HRESULT render();
 

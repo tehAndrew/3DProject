@@ -156,7 +156,7 @@ HWND initWindow(HINSTANCE hInstance) {
 // Inits all of the app.
 HRESULT initApp(HWND hWnd, int nCmdShow) {
 	HRESULT hr;
-	if (FAILED(hr = world.init(hWnd, clientWidth, clientHeight, 30)))
+	if (FAILED(hr = world.init(hWnd, clientWidth, clientHeight, 0.1f, 10000.f, 160.f)))
 		return hr;
 
 	ShowWindow(hWnd, nCmdShow);
